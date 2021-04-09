@@ -1,0 +1,295 @@
+﻿<!DOCTYPE html>
+
+<html lang="zh-CN">
+
+<head>
+    <title>JSON在线解析及格式化验证 - JSON.help</title>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <meta name="HandheldFriendly" content="True" />
+    <meta name="MobileOptimized" content="320" />
+    <meta http-equiv="Cache-Control" content="max-age=7200" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="robots" content="all" />
+    <meta name="keywords" content="json,json在线解析,json格式化,json格式验证,json转xml,xml转json" />
+    <link href="/static/css/app.min.css" rel="stylesheet">
+    <link href="/static/css/font-awesome.min.css" rel="stylesheet">
+    <link href="static/css/jquery.numberedtextarea.css" rel="stylesheet">
+    <style>
+        body,
+        html {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+
+        ::-webkit-scrollbar-track,
+        ::-webkit-scrollbar-thumb {
+            border-radius: 999px;
+            border: 0px solid transparent;
+        }
+
+        ::-webkit-scrollbar-track {
+            box-shadow: none;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            min-height: 20px;
+            background-clip: content-box;
+            box-shadow: 0 0 0 5px rgba(0, 0, 0, .2) inset;
+            background: #3fa9f5;
+        }
+
+        ::-webkit-scrollbar-corner {
+            background: transparent;
+        }
+    </style>
+    <!-- HTML5 shim and Respond.js IE8 support of HTML5 elements and media queries -->
+    <!--[if lt IE 9]>
+        
+        
+    <![endif]-->
+    <!-- Favicons -->
+</head>
+
+<body>
+
+    <header id="header">
+        <nav>
+            <a class="logo" title="json.help">json.
+                <span>help</span>
+            </a>
+            <ul>
+                <a href="/">在线解析</a>
+                <a href="/wiki.html">什么是JSON</a>
+                <a href="/code.html">JSON解析代码</a>
+                <a href="/component.html">JSON组件</a>
+                <a href="/git">GIT手册</a>
+                <a href="/markdown.html">MarkDown编辑器</a>
+            </ul>
+        </nav>
+        <div class="version">
+            <span>Version 2.2.1 (Selective Steve)</span>
+            <span>idea & design & make:
+                <a>Sinda</a>
+            </span>
+        </div>
+    </header>
+
+
+    <section class="content" id="content">
+        <div class="code">
+            <div class="tools">
+                <a href="javascript:" class="number" title="显示行号" data-placement="bottom">
+                    <i class="fa fa-list-ol" aria-hidden="true"></i>显示行号
+                </a>
+                <a href="javascript:" class="clear" title="清空" data-placement="bottom">
+                    <i class="fa fa-trash" aria-hidden="true"></i>清空
+                </a>
+            </div>
+            <textarea id="json-src" spellcheck="false" placeholder="在此输入json字符串或XML字符串..."></textarea>
+        </div>
+
+        <div class="format">
+            <div class="tools">
+                <a href="javascript:" class="zip" title="压缩" data-placement="bottom">
+                    <i class="fa fa-database" aria-hidden="true"></i>压缩
+                </a>
+                <a href="javascript:" class="xml" title="转XML" data-placement="bottom">
+                    <i class="fa fa-file-excel-o" aria-hidden="true"></i>转XML
+                </a>
+                <a href="javascript:" class="yaml" title="转YAML" data-placement="bottom">
+                    <i class="fa fa-file-excel-o" aria-hidden="true"></i>转YAML
+                </a>
+                <a href="javascript:" class="save" title="保存">
+                    <i class="fa fa-download"></i>保存
+                </a>
+                <a href="javascript:" class="copy" title="复制" data-clipboard-target="#json-target">
+                    <i class="fa fa-copy"></i>复制
+                </a>
+
+            </div>
+
+            <div id="json-target" class="json-target"></div>
+    </section>
+
+    <section class="model model-success">
+        复制成功，你可直接粘贴！
+    </section>
+    <section class="model model-error">
+        复制失败，请手动全选进行复制！
+    </section>
+
+    <script src="static/js/jquery.min.js"></script>
+
+    <script src="static/js/jquery.json.js"></script>
+    <script src="static/js/jquery.xml2json.js"></script>
+    <script src="static/js/jquery.json2xml.js"></script>
+    <script src="static/js/json2.js"></script>
+    <script src="static/js/jsonlint.js"></script>
+    <script src="static/js/filesaver.min.js"></script>
+    <script src="static/js/clipboard.min.js"></script>
+    <script src="static/js/jquery.numberedtextarea.js"></script>
+
+
+    <script>
+        (function (doc, win) {
+            var docEl = doc.documentElement,
+                resizeEvt = 'orientationchange' in window ? 'orientationchange' : 'resize',
+                recalc = function () {
+                    document.getElementById('content').style.height = (document.body.clientHeight - document.getElementById(
+                        'header').clientHeight) + 'px';
+
+                };
+            if (!doc.addEventListener) return;
+            win.addEventListener(resizeEvt, recalc, false);
+            doc.addEventListener('DOMContentLoaded', recalc, false);
+
+        })(document, window);
+
+
+        var current_json = '';
+        var current_json_str = '';
+        var is_xml = false;
+        var is_compress = false;
+        var is_number = false;
+
+        $('textarea').numberedtextarea();
+
+        function init() {
+            is_xml = false;
+            is_compress = false;
+            is_number = false;
+        }
+
+        $('#json-src').keyup(function () {
+            init();
+            var content = $.trim($(this).val());
+            var result = '';
+            var type = 'json';
+            if (content != '') {
+                //如果是xml,那么转换为json
+                if (content.substr(0, 1) === '<' && content.substr(-1, 1) === '>') {
+                    try {
+                        var json_obj = $.xml2json(content);
+                        content = JSON.stringify(json_obj);
+                        type = 'xml';
+                    } catch (e) {
+                        result = '解析错误：<span style="color: #f1592a;font-weight:bold;">' + e.message + '</span>';
+                        current_json_str = result;
+                        $('#json-target').html(result);
+                        return false;
+                    }
+                }
+
+                try {
+                    current_json = jsonlint.parse(content);
+                    current_json_str = JSON.stringify(current_json);
+                    if (type == 'json') {
+                        $('#json-src').val(JSON.stringify(current_json, null, "  "));
+                    }
+
+                    result = new JSONFormat(content, 4).toString();
+                } catch (e) {
+                    result = '<span style="color: #f1592a;font-weight:bold;">' + e + '</span>';
+                    current_json_str = result;
+                }
+                $('#json-target').html(result);
+                $('#json-target').css({
+                    'height': ($('.code').height() - 50) + 'px',
+                    'overflow-y': 'scroll',
+                });
+            } else {
+                $('#json-target').css({});
+                $('#json-target').html('');
+            }
+
+        });
+
+        $('.xml').click(function () {
+            $('#json-target').css({});
+            if (is_xml) {
+                $('#json-src').keyup();
+            } else {
+                var result = $.json2xml(current_json);
+                $('#json-target').html('<textarea spellcheck="false">' + result + '</textarea>');
+                is_xml = true;
+                $('#json-target').css('overflow', 'hidden');
+            }
+            $(this).toggleClass('active');
+        });
+
+        $('.yaml').click(function() {
+            var obj = $('#json-src').val('');
+            $('#json-target').html(obj.join("\n"));
+        })
+
+        $('.number').click(function () {
+            if (!is_number) {
+                $('#line-num').show();
+                $('.numberedtextarea-line-numbers').show();
+                is_number = true;
+            } else {
+                $('#line-num').hide();
+                $('.numberedtextarea-line-numbers').hide();
+                is_number = false;
+            }
+            $(this).toggleClass('active');
+        });
+
+
+        $('.zip').click(function () {
+            if (is_compress) {
+                $('#json-src').keyup();
+            } else {
+                $('#json-target').html(current_json_str);
+                is_compress = true;
+            }
+            $(this).toggleClass('active');
+        });
+
+
+        $('.clear').click(function () {
+            $('#json-src').val('');
+            $('#json-target').html('');
+        });
+
+        $('.save').click(function () {
+            var content = JSON.stringify(current_json);
+            var blob = new Blob([content], {
+                type: "application/json;charset=utf-8"
+            });
+            saveAs(blob, "format_json_help.json");
+        });
+
+        var clipboard = new ClipboardJS('.copy');
+        clipboard.on('success', function (e) {
+            $('.model-success').addClass('show')
+            setTimeout(function () {
+                $('.model').removeClass('show')
+            }, 2000);
+            e.clearSelection();
+        });
+        clipboard.on('error', function (e) {
+            $('.model-error').addClass('show')
+            setTimeout(function () {
+                $('.model').removeClass('show')
+            }, 2000);
+        });
+
+        var _hmt = _hmt || [];
+        (function () {
+            var hm = document.createElement("script");
+            hm.src = "https://hm.baidu.com/hm.js?977e04d32a22530f9f52529cdf67f058";
+            var s = document.getElementsByTagName("script")[0];
+            s.parentNode.insertBefore(hm, s);
+        })();
+    </script>
+
+</body>
+
+</html>
